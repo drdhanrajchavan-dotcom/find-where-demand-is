@@ -39,6 +39,14 @@ export function parseDevtoUrl(
   return { username: m[1], slug: m[2] };
 }
 
+export function parseXUrl(
+  url: string
+): { handle: string; statusId: string } | null {
+  const m = url.match(/(?:x\.com|twitter\.com)\/([^/]+)\/status\/(\d+)/i);
+  if (!m) return null;
+  return { handle: m[1], statusId: m[2] };
+}
+
 /**
  * Short human-readable label for a source thread.
  * Example: "r/python", "HN 47819584", "owner/repo #123", "SO 12345", "@user".
@@ -69,6 +77,10 @@ export function sourceLabel(opts: {
     case "devto": {
       const p = parseDevtoUrl(opts.url);
       return p ? `@${p.username}` : "Dev.to";
+    }
+    case "x": {
+      const p = parseXUrl(opts.url);
+      return p ? `@${p.handle}` : "X / Twitter";
     }
     default:
       return opts.platform;

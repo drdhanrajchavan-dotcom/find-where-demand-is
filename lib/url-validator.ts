@@ -12,6 +12,7 @@ const HN_PATTERN = /news\.ycombinator\.com\/item\?id=\d+/i;
 const GITHUB_ISSUE_PATTERN = /github\.com\/[^/]+\/[^/]+\/issues\/\d+/i;
 const SO_PATTERN = /stackoverflow\.com\/questions\/\d+/i;
 const DEVTO_PATTERN = /dev\.to\/[^/]+\/[^/]+/i;
+const X_PATTERN = /(?:x\.com|twitter\.com)\/[^/]+\/status\/\d+/i;
 
 function urlMatchesPlatform(url: string, platform: string): boolean {
   switch (platform) {
@@ -25,6 +26,8 @@ function urlMatchesPlatform(url: string, platform: string): boolean {
       return SO_PATTERN.test(url);
     case "devto":
       return DEVTO_PATTERN.test(url);
+    case "x":
+      return X_PATTERN.test(url);
     default:
       return true;
   }

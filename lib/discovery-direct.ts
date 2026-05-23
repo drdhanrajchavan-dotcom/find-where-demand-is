@@ -399,6 +399,72 @@ function pickRedditCommentTarget(children: unknown): TargetComment | undefined {
   };
 }
 
+// X (Twitter) Path B — also Gemini Flash + googleSearch. No verification step
+// because X has no public JSON endpoint to cross-check titles. We trust the
+// googleSearch grounding metadata.
+export async function fetchXDirect(
+  productDescription: string
+): Promise<DiscoveredThread[]> {
+  const { generateContent, extractJson } = await import("./gemini");
+  const prompt = `Use Google Search to find 5-10 X (Twitter) posts where developers describe needing this product: "${productDescription}".
+
+For each post, return:
+- thread_url: full https://x.com/{user}/status/{id} or twitter.com equivalent
+- handle: the poster's @ handle without the @
+- text: the tweet text (first 280 chars)
+- engagement: best-effort estimate of likes + replies (number, 0 if unknown)
+
+Only include real, accessible tweets. Exclude promotional tweets and tweets that are pure product announcements. Prefer the last 12 months.
+
+Return JSON only (no preamble, no fences):
+{"threads": [{"thread_url": "...", "handle": "...", "text": "...", "engagement": 0}]}`;
+
+  try {
+    const { signal, cancel } = abortAfter(20_000);
+    try {
+      const result = await generateContent({
+        prompt,
+        tools: [{ googleSearch: {} }],
+        thinkingLevel: "minimal",
+        signal,
+      });
+      const parsed = extractJson<{
+        threads?: Array<{
+          thread_url?: string;
+          handle?: string;
+          text?: string;
+          engagement?: number;
+        }>;
+      }>(result.text);
+      if (!Array.isArray(parsed.threads)) return [];
+      return parsed.threads
+        .filter(
+          (t) =>
+            typeof t?.thread_url === "string" &&
+            /(?:x\.com|twitter\.com)\/[^/]+\/status\/\d+/i.test(t.thread_url)
+        )
+        .map((t) => {
+          const text = (t.text ?? "").replace(/\s+/g, " ").trim();
+          const title = text.slice(0, 80);
+          return {
+            thread_url: t.thread_url as string,
+            platform: "x" as Platform,
+            title,
+            body_snippet: snippet(text),
+            engagement: typeof t.engagement === "number" ? t.engagement : 0,
+            created_at: "",
+            verbatim_phrases: extractPhrases(text),
+          };
+        })
+        .slice(0, 10);
+    } finally {
+      cancel();
+    }
+  } catch {
+    return [];
+  }
+}
+
 function extractRedditPhrases(title: string, selftext: string): string[] {
   const out: string[] = [];
   if (title) out.push(title.slice(0, 120));
@@ -436,4 +502,5 @@ export const DIRECT_FETCHERS: Record<
   stackoverflow: fetchStackOverflowDirect,
   devto: fetchDevToDirect,
   reddit: fetchRedditDirect,
+  x: fetchXDirect,
 };

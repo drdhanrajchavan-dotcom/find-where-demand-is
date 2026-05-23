@@ -1,4 +1,4 @@
-export type Platform = "reddit" | "hackernews" | "github" | "devto" | "stackoverflow";
+export type Platform = "reddit" | "hackernews" | "github" | "devto" | "stackoverflow" | "x";
 
 export type BroadcastPlatform = "x" | "linkedin";
 
@@ -8,6 +8,7 @@ export type AgentId =
   | "discovery_github"
   | "discovery_devto"
   | "discovery_stackoverflow"
+  | "discovery_x"
   | "aggregator"
   | "strategy"
   | "content_replies"

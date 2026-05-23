@@ -11,6 +11,7 @@ const PLATFORM_LABEL: Record<Platform, string> = {
   github: "GitHub",
   devto: "Dev.to",
   stackoverflow: "Stack Overflow",
+  x: "X / Twitter",
 };
 
 const PLATFORM_COLOR: Record<Platform, string> = {
@@ -19,6 +20,7 @@ const PLATFORM_COLOR: Record<Platform, string> = {
   github: "text-zinc-300 border-zinc-500/30",
   devto: "text-zinc-100 border-zinc-400/30",
   stackoverflow: "text-amber-300 border-amber-300/30",
+  x: "text-sky-300 border-sky-300/30",
 };
 
 function fmtDate(iso: string): string {
@@ -41,7 +43,7 @@ export function DemandMap({
   threads: DiscoveredThread[];
   counts: Partial<Record<Platform, number>>;
 }) {
-  const platforms: Platform[] = ["reddit", "hackernews", "github", "devto", "stackoverflow"];
+  const platforms: Platform[] = ["reddit", "hackernews", "github", "devto", "stackoverflow", "x"];
   const [sort, setSort] = useState<SortMode>("engagement");
 
   const sorted = useMemo(() => {

@@ -130,12 +130,40 @@ Return JSON only:
 
 Stop after 10 results or 90 seconds.`;
 
+export const DISCOVERY_X = `You are a demand intelligence agent specialized in X (formerly Twitter).
+
+PRODUCT: {productDescription}
+
+TASK: Find 5-10 X posts from the last 12 months where developers describe needing the product above.
+
+INSTRUCTIONS:
+1. X's public APIs are gated; the only reliable way is the sandbox-provided google:search tool. Use it to search for queries like:
+   - site:x.com "I wish there was a tool that" {product keywords}
+   - site:x.com "looking for" {product domain}
+   - site:twitter.com "anyone know" {product keywords}
+2. Generate 3-4 search queries.
+3. For each matching X post, extract:
+   - thread_url: full https://x.com/{user}/status/{id} or twitter.com equivalent
+   - platform: "x"
+   - title: the first 80 chars of the tweet text
+   - body_snippet: full tweet text (first 280 chars)
+   - engagement: best-effort estimate of likes + replies (number, may be 0 if unknown)
+   - created_at: ISO 8601 if available
+   - verbatim_phrases: 1-3 short phrases from the tweet
+4. Exclude promotional tweets, retweets without commentary, and product launch announcements.
+
+Return JSON only:
+{"platform": "x", "threads": [...]}
+
+Stop after 10 results or 90 seconds.`;
+
 export const DISCOVERY_PROMPTS_BY_PLATFORM: Record<Platform, string> = {
   reddit: DISCOVERY_REDDIT,
   hackernews: DISCOVERY_HACKERNEWS,
   github: DISCOVERY_GITHUB,
   devto: DISCOVERY_DEVTO,
   stackoverflow: DISCOVERY_STACKOVERFLOW,
+  x: DISCOVERY_X,
 };
 
 // =====================================================================
@@ -265,12 +293,42 @@ export const REPLY_GITHUB = replyPromptFor("GitHub issue", 100);
 export const REPLY_STACKOVERFLOW = replyPromptFor("Stack Overflow question", 120);
 export const REPLY_DEVTO = replyPromptFor("Dev.to article comment section", 100);
 
+// X replies have a hard 280-char limit and a different voice — terse, no
+// headers, no markdown, often address the OP by handle.
+export const REPLY_X = `You are replying to a specific X (Twitter) post as a developer who built a tool that solves what's being described. The reply is a tweet.
+
+SOURCE THREAD:
+{sourceThread}
+
+TARGET COMMENT (the post you're replying to; "none" means reply to the original tweet):
+{targetComment}
+
+YOUR PRODUCT: {productDescription}
+PRODUCT LINK: {productUrl}
+
+VOICE EXAMPLES (mirror sentence rhythm; "none" = neutral developer voice):
+{voiceSamples}
+
+WRITE AN X REPLY THAT:
+1. Strictly under 240 characters (the URL counts). Hard limit.
+2. Opens addressing the OP — if they posted from @handle, you can use it.
+3. References one concrete technical detail of your product.
+4. Includes {productUrl} naturally (not pinned at the end).
+5. No hashtags. No emojis. No marketing words.
+6. Sounds like a real engineer dropping a tip, not a brand.
+
+${ANTI_HALLUCINATION}
+
+OUTPUT JSON only (no preamble, no fences):
+{"reply_body": "string (≤240 chars)"}`;
+
 export const REPLY_BY_PLATFORM: Record<Platform, string> = {
   reddit: REPLY_REDDIT,
   hackernews: REPLY_HACKERNEWS,
   github: REPLY_GITHUB,
   stackoverflow: REPLY_STACKOVERFLOW,
   devto: REPLY_DEVTO,
+  x: REPLY_X,
 };
 
 // =====================================================================

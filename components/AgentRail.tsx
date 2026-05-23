@@ -23,6 +23,7 @@ const AGENTS: AgentRow[] = [
   { id: "discovery_github", label: "GitHub", group: "discover" },
   { id: "discovery_devto", label: "Dev.to", group: "discover" },
   { id: "discovery_stackoverflow", label: "Stack Overflow", group: "discover" },
+  { id: "discovery_x", label: "X / Twitter", group: "discover" },
   { id: "aggregator", label: "Aggregator", group: "synth" },
   { id: "strategy", label: "Strategy", group: "synth" },
   { id: "content_replies", label: "Reply Writer", group: "create" },

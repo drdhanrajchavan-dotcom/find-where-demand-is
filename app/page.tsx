@@ -55,6 +55,7 @@ const ALL_AGENT_IDS: AgentId[] = [
   "discovery_github",
   "discovery_devto",
   "discovery_stackoverflow",
+  "discovery_x",
   "aggregator",
   "strategy",
   "content_replies",

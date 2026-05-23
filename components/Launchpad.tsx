@@ -41,6 +41,7 @@ const PLATFORM_BADGE_CLASS: Record<Platform, string> = {
   github: "text-zinc-200 border-zinc-400/40 bg-zinc-400/5",
   devto: "text-zinc-100 border-zinc-300/40 bg-zinc-300/5",
   stackoverflow: "text-amber-300 border-amber-300/40 bg-amber-300/5",
+  x: "text-sky-300 border-sky-300/40 bg-sky-300/5",
 };
 
 const PLATFORM_DISPLAY: Record<Platform, string> = {
@@ -49,6 +50,7 @@ const PLATFORM_DISPLAY: Record<Platform, string> = {
   github: "GitHub",
   devto: "Dev.to",
   stackoverflow: "Stack Overflow",
+  x: "X / Twitter",
 };
 
 export function Launchpad({

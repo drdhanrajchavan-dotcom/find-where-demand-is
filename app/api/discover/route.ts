@@ -40,6 +40,7 @@ const DISCOVERY_PLATFORMS: Array<{ platform: Platform; agent: AgentId }> = [
   { platform: "github", agent: "discovery_github" },
   { platform: "devto", agent: "discovery_devto" },
   { platform: "stackoverflow", agent: "discovery_stackoverflow" },
+  { platform: "x", agent: "discovery_x" },
 ];
 
 const REPLY_TARGET_COUNT = 6;
@@ -152,6 +153,7 @@ async function runDiscovery(
     github: [],
     devto: [],
     stackoverflow: [],
+    x: [],
   };
 
   DISCOVERY_PLATFORMS.forEach(({ agent }) => {
@@ -429,6 +431,7 @@ function pickReplyTargets(demandMap: DemandMap, count: number): DiscoveredThread
     github: 0,
     devto: 0,
     stackoverflow: 0,
+    x: 0,
   };
   for (const thread of demandMap.top_threads ?? []) {
     if (out.length >= count) break;
