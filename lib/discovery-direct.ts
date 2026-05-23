@@ -285,14 +285,24 @@ export async function fetchRedditDirect(
   const { generateContent, extractJson } = await import("./gemini");
   const prompt = `Use Google Search to find 5-10 Reddit threads where developers describe needing this product: "${productDescription}".
 
-For each thread, return ONLY the thread_url field — the full https://www.reddit.com/r/... permalink. Do not paraphrase titles or invent details; we will verify each URL ourselves.
+For each thread, return:
+- thread_url: the full https://www.reddit.com/r/... permalink
+- title: the thread title as it appeared in the search result (do not paraphrase)
+- subreddit: the subreddit name without "r/"
+- body_snippet: first 200 chars summarizing the OP, if available from the search snippet
 
 Prefer results from the last 12 months. Exclude promotional posts, AMAs, and product launch announcements.
 
 Return JSON only (no preamble, no fences):
-{"threads": [{"thread_url": "https://www.reddit.com/r/..."}]}`;
+{"threads": [{"thread_url": "...", "title": "...", "subreddit": "...", "body_snippet": "..."}]}`;
 
-  let urls: string[] = [];
+  type Candidate = {
+    thread_url: string;
+    title: string;
+    subreddit?: string;
+    body_snippet?: string;
+  };
+  let candidates: Candidate[] = [];
   try {
     const { signal, cancel } = abortAfter(20_000);
     try {
@@ -302,11 +312,30 @@ Return JSON only (no preamble, no fences):
         thinkingLevel: "minimal",
         signal,
       });
-      const parsed = extractJson<{ threads?: Array<{ thread_url?: string }> }>(result.text);
+      const parsed = extractJson<{
+        threads?: Array<{
+          thread_url?: string;
+          title?: string;
+          subreddit?: string;
+          body_snippet?: string;
+        }>;
+      }>(result.text);
       if (Array.isArray(parsed.threads)) {
-        urls = parsed.threads
-          .map((t) => (typeof t?.thread_url === "string" ? t.thread_url : ""))
-          .filter((u) => u && /reddit\.com\/r\/[^/]+\/comments\/[^/]+/i.test(u));
+        candidates = parsed.threads
+          .filter(
+            (t) =>
+              typeof t?.thread_url === "string" &&
+              /reddit\.com\/r\/[^/]+\/comments\/[^/]+/i.test(t.thread_url)
+          )
+          .map((t) => ({
+            thread_url: t.thread_url as string,
+            title: typeof t.title === "string" ? t.title : "",
+            subreddit:
+              typeof t.subreddit === "string"
+                ? t.subreddit.replace(/^r\//, "")
+                : undefined,
+            body_snippet: typeof t.body_snippet === "string" ? t.body_snippet : "",
+          }));
       }
     } finally {
       cancel();
@@ -315,13 +344,35 @@ Return JSON only (no preamble, no fences):
     return [];
   }
 
-  if (urls.length === 0) return [];
+  if (candidates.length === 0) return [];
 
-  // Stage 2 — verify each URL by fetching reddit.com/<path>.json. Drops URLs
-  // where Gemini hallucinated a real-looking-but-wrong link or where Reddit
-  // simply blocks us (we can't trust unverifiable URLs).
-  const verified = await Promise.all(urls.map((u) => verifyRedditThread(u)));
-  return verified.filter((t): t is DiscoveredThread => t !== null).slice(0, 10);
+  // Stage 2 — TRY to verify each URL by fetching reddit.com/<path>.json. When
+  // .json works (home / dev IPs, mostly), we get real titles + top comments.
+  // When it fails (server IPs like Vercel Edge often get blocked), we fall
+  // back to the model's claimed title rather than dropping the result. The
+  // downstream relevance filter catches obvious off-topic noise.
+  const enriched = await Promise.all(
+    candidates.map(async (c) => {
+      const verified = await verifyRedditThread(c.thread_url);
+      if (verified) return verified;
+      // Fallback: trust the model's claimed metadata, but flag minimal trust
+      // by leaving engagement at 0 and verbatim_phrases empty unless we have
+      // a snippet to extract from.
+      return {
+        thread_url: c.thread_url,
+        platform: "reddit" as Platform,
+        title: c.title || "Reddit thread",
+        body_snippet: c.body_snippet ? snippet(c.body_snippet) : "",
+        subreddit: c.subreddit,
+        engagement: 0,
+        created_at: "",
+        verbatim_phrases: c.body_snippet
+          ? extractRedditPhrases(c.title || "", c.body_snippet)
+          : [],
+      } satisfies DiscoveredThread;
+    })
+  );
+  return enriched.slice(0, 10);
 }
 
 async function verifyRedditThread(url: string): Promise<DiscoveredThread | null> {
