@@ -193,28 +193,31 @@ OUTPUT JSON only (no preamble, no fences):
   "top_threads": [<full thread objects sorted by composite descending>]
 }`;
 
-export const RELEVANCE_FILTER = `You are a relevance auditor for demand-discovery results. Bias TOWARD inclusion — a noisy result the user can scroll past is far better than dropping a real match.
+export const RELEVANCE_FILTER = `You are a relevance auditor for demand-discovery results. Apply a moderate bar — keep results that genuinely belong to the product's domain; drop results that only share generic keywords.
 
 PRODUCT: {productDescription}
 
 THREADS (each numbered by its index in the array):
 {threadsJson}
 
-TASK: For each thread, return ON_TOPIC if there's any plausible connection to the product's domain. Only mark OFF_TOPIC when the thread is clearly about a completely unrelated topic.
+TASK: For each thread, decide ON_TOPIC vs OFF_TOPIC based on whether the thread is actually about the SAME DOMAIN as the product (not just sharing one or two broad words).
 
-REJECT (OFF_TOPIC) ONLY when:
-- The thread's title and snippet are about a different domain entirely (e.g., LLM observability when the product is calendar scheduling — zero domain overlap)
-- The thread is obviously off-topic spam, a job posting, or unrelated news
+REJECT (OFF_TOPIC) when:
+- The thread shares only generic words like "AI", "tool", "open-source", "self-hosted", "developer", "API", "CLI" with the product but the actual subject matter is a different domain. Example: product is a Calendly clone, thread is about "self-hosted LLM observability" — REJECT (shares "self-hosted" only).
+- The thread is in an unrelated subreddit / topic area that the product wouldn't reach the right audience in. Example: product is a database migration CLI, thread is in r/TeachingUK about a school bulletin — REJECT.
+- The thread is spam, a job posting, or a news article unrelated to the product's category.
+- The thread is just keyword-matched against the model's search query without the actual content lining up.
 
-ACCEPT (ON_TOPIC) when ANY of:
-- The thread describes a need the product could plausibly address
-- The thread is in or discusses the product's domain
-- The thread mentions a competitor or alternative in the same category
-- The thread is a tutorial, blog post, or "Show HN" in the product's space — even if it's a different product, it shows demand for the category
-- You're not sure — accept it. The user can ignore irrelevant cards. They can't unmiss a relevant one.
+ACCEPT (ON_TOPIC) when:
+- The thread is in the product's actual domain (e.g., Calendly-clone product → threads about scheduling, calendars, booking tools, time management).
+- The thread describes a specific need the product addresses, with substantive content (not just a one-line keyword mention).
+- The thread mentions a direct competitor by name (e.g., for a Calendly alternative, threads mentioning Cal.com, SavvyCal, Calendly itself).
+- The thread is a tutorial, ask-HN, or Show-HN in the product's category — even for a different product, it indicates audience presence.
+
+When the title and snippet together don't make the domain match clear, lean toward OFF_TOPIC. We'd rather show 4 highly-relevant threads than 12 noisy ones.
 
 OUTPUT JSON only (no preamble, no fences):
-{"verdicts": [{"index": int, "verdict": "ON_TOPIC" | "OFF_TOPIC", "reason": "≤8 words"}]}`;
+{"verdicts": [{"index": int, "verdict": "ON_TOPIC" | "OFF_TOPIC", "reason": "≤10 words"}]}`;
 
 export const STRATEGY = `You are a launch strategist for a developer-tools company.
 

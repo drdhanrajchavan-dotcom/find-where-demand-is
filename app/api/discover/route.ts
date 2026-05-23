@@ -285,11 +285,11 @@ async function runRelevanceFilter(
     );
     const filtered = threads.filter((_t, i) => onTopicIndices.has(i));
 
-    // Don't strip the demand map down to too few. If the filter was over-
-    // aggressive (< 6 survivors out of a substantive input), keep the top
-    // engagement-ranked threads as a floor so the orchestrator has enough
-    // reply targets and the UI doesn't look empty.
-    const minKeep = Math.min(6, threads.length);
+    // Floor at 3 — if filter went off the rails completely, keep the top-3
+    // by engagement so the orchestrator has something to draft replies for.
+    // Otherwise trust the filter — surfacing high-relevance, lower-count is
+    // better than padding with noise.
+    const minKeep = Math.min(3, threads.length);
     const finalThreads =
       filtered.length >= minKeep
         ? filtered

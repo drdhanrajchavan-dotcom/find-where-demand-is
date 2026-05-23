@@ -349,15 +349,23 @@ Return JSON only (no preamble, no fences):
   // Stage 2 — TRY to verify each URL by fetching reddit.com/<path>.json. When
   // .json works (home / dev IPs, mostly), we get real titles + top comments.
   // When it fails (server IPs like Vercel Edge often get blocked), we fall
-  // back to the model's claimed title rather than dropping the result. The
-  // downstream relevance filter catches obvious off-topic noise.
+  // back to the model's claimed title — but only if the claimed title has
+  // some plausible keyword overlap with the product description. This is a
+  // cheap defense against URL-hallucination cases where Gemini fabricates a
+  // product-relevant title for a real-but-unrelated Reddit URL.
+  const productKeywords = extractProductKeywords(productDescription);
   const enriched = await Promise.all(
     candidates.map(async (c) => {
       const verified = await verifyRedditThread(c.thread_url);
       if (verified) return verified;
-      // Fallback: trust the model's claimed metadata, but flag minimal trust
-      // by leaving engagement at 0 and verbatim_phrases empty unless we have
-      // a snippet to extract from.
+
+      // Fallback path — keep only when the model's claimed title shares
+      // at least one substantive keyword with the product. Drops the
+      // r/TeachingUK / r/random-subreddit hallucinations.
+      const claimedBlob = `${c.title} ${c.body_snippet ?? ""}`.toLowerCase();
+      const hasOverlap = productKeywords.some((k) => claimedBlob.includes(k));
+      if (!hasOverlap) return null;
+
       return {
         thread_url: c.thread_url,
         platform: "reddit" as Platform,
@@ -372,7 +380,28 @@ Return JSON only (no preamble, no fences):
       } satisfies DiscoveredThread;
     })
   );
-  return enriched.slice(0, 10);
+  return enriched
+    .filter((t): t is DiscoveredThread => t !== null)
+    .slice(0, 10);
+}
+
+function extractProductKeywords(productDescription: string): string[] {
+  const desc = productDescription.toLowerCase();
+  const stop = new Set([
+    "an", "a", "the", "tool", "that", "with", "for", "of", "and", "or",
+    "to", "is", "on", "in", "by", "as", "at", "be", "are", "has", "have",
+    "open-source", "open", "source", "self-hosted", "self", "hosted",
+    "ai", "platform", "system", "service", "product", "solution",
+    "developer", "developers", "alternative", "based",
+  ]);
+  return Array.from(
+    new Set(
+      desc
+        .replace(/[^a-z0-9\s-]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 4 && !stop.has(w))
+    )
+  ).slice(0, 8);
 }
 
 async function verifyRedditThread(url: string): Promise<DiscoveredThread | null> {
