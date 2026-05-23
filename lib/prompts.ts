@@ -152,12 +152,9 @@ INPUT: An array of discovery results from 5 platforms with engagement metrics an
 
 TASK:
 1. Deduplicate threads that reference the same conversation across platforms (match on title overlap or shared URL).
-2. **DOMAIN RELEVANCE — be strict.** Drop any thread whose title or body_snippet is NOT genuinely about the product's primary domain. Token overlap on broad words like "self-hosted", "open-source", "tool", "API", "CLI" is NOT enough — the thread must actually discuss the product's use case. Examples of what to drop:
-   - Product description "self-hosted Calendly alternative" → drop "Show HN: LLM Observability self-hosted" (shares only "self-hosted")
-   - Product description "Figma to React converter" → drop "Research Report: Tool Integration Q4" (no Figma/React semantic match)
-   - When in doubt, drop. A small relevant set beats a large noisy set.
+2. **DOMAIN RELEVANCE — bias toward inclusion.** Drop only threads whose title and body are about a completely unrelated domain. Token overlap on broad words ("self-hosted", "open-source", "tool", "CLI") is not enough on its own, but if the thread is plausibly in the product's category — keep it. When in doubt, KEEP.
 3. Score the surviving threads: composite = recency_score (0-1, last 30d=1.0 decaying to 180d=0.1) * engagement_score (log-normalized upvotes+comments+reactions) * intent_score (0-1, how explicitly the user is asking for this product).
-4. Return the top 20 threads sorted by composite score, plus a summary.
+4. Return the top 20 threads sorted by composite score, plus a summary. If you have fewer than 10 surviving threads, return all of them; do NOT artificially narrow.
 
 OUTPUT JSON only (no preamble, no fences):
 {
@@ -168,26 +165,25 @@ OUTPUT JSON only (no preamble, no fences):
   "top_threads": [<full thread objects sorted by composite descending>]
 }`;
 
-export const RELEVANCE_FILTER = `You are a strict relevance auditor for demand-discovery results.
+export const RELEVANCE_FILTER = `You are a relevance auditor for demand-discovery results. Bias TOWARD inclusion — a noisy result the user can scroll past is far better than dropping a real match.
 
 PRODUCT: {productDescription}
 
 THREADS (each numbered by its index in the array):
 {threadsJson}
 
-TASK: For each thread, return ON_TOPIC only if the thread is genuinely about the product's primary domain — not just sharing a generic keyword.
+TASK: For each thread, return ON_TOPIC if there's any plausible connection to the product's domain. Only mark OFF_TOPIC when the thread is clearly about a completely unrelated topic.
 
-REJECT (OFF_TOPIC) when the thread:
-- Only matches on broad words like "self-hosted", "open-source", "tool", "API", "CLI" but the actual subject is a different domain
-- Is a product launch / "Show HN" / Show post for a DIFFERENT product unrelated to this one
-- Is a generic research report, tutorial, or news post that happens to mention the keyword
-- Is about a competitor (only KEEP if the discussion itself explicitly asks for an alternative that matches this product)
+REJECT (OFF_TOPIC) ONLY when:
+- The thread's title and snippet are about a different domain entirely (e.g., LLM observability when the product is calendar scheduling — zero domain overlap)
+- The thread is obviously off-topic spam, a job posting, or unrelated news
 
-ACCEPT (ON_TOPIC) when the thread:
-- Describes a specific need that this product would solve
-- Discusses the product's domain (e.g., a Calendly clone if product is scheduling)
-- Asks for tool recommendations in the product's category
-- Is a competitor that the user is complaining about / asking for an alternative to
+ACCEPT (ON_TOPIC) when ANY of:
+- The thread describes a need the product could plausibly address
+- The thread is in or discusses the product's domain
+- The thread mentions a competitor or alternative in the same category
+- The thread is a tutorial, blog post, or "Show HN" in the product's space — even if it's a different product, it shows demand for the category
+- You're not sure — accept it. The user can ignore irrelevant cards. They can't unmiss a relevant one.
 
 OUTPUT JSON only (no preamble, no fences):
 {"verdicts": [{"index": int, "verdict": "ON_TOPIC" | "OFF_TOPIC", "reason": "≤8 words"}]}`;
