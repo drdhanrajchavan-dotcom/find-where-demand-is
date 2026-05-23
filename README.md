@@ -2,6 +2,8 @@
 
 **Find where demand is. Launch there.**
 
+**Live demo:** [find-where-demand-is.vercel.app](https://find-where-demand-is.vercel.app)
+
 LaunchAgent reverses the marketing pipeline. Instead of writing content and chasing audiences, it finds conversations where developers are *already* asking for your product, then drafts a platform-specific reply for each — landing inside an active discussion instead of broadcasting blindly.
 
 Built for the Cerebral Valley × Google I/O Hackathon (May 2026).
